@@ -21,27 +21,29 @@
 --   * o ETL chama esta consulta em blocos de poucos dias (BLOCO_EXTRACAO_DIAS);
 --   * bind variables (:dt_ini...) -> o Oracle reaproveita o plano.
 --
--- >>> VALIDAR com 00_descoberta.sql: nomes das colunas de valor, da data, do
---     local e da flag de ABC de movimentação.
+-- Colunas confirmadas no dicionário (ALL_TAB_COLUMNS) em 10/11/2026:
+--   data DTAENTRADASAIDA; local LOCAL -> MRL_LOCAL.SEQLOCAL; valores VALORVLRNF,
+--   VALORIPI, VALORICMSST, VALORDESPNF, VALORISS, VALORDESPFORANF, VALORDCTOFORANF.
+-- >>> VALIDAR: flag de ABC de movimentação (INDFIXOABCMOVIMENTACAO?) e lista de CGOs.
 -- =============================================================================
 SELECT l.nroempresa                       AS nro_empresa,
        l.seqproduto                       AS seq_produto,
-       TRUNC(l.dtaentradasaida)           AS dta_lancamento,   -- >>> VALIDAR coluna de data
+       TRUNC(l.dtaentradasaida)           AS dta_lancamento,   -- confirmado no dicionário
        l.codgeraloper                     AS cgo,
        c.seqcategoria                     AS seq_categoria,
-       SUM(NVL(l.qtdlancto, 0))           AS qtd_lancada,      -- >>> VALIDAR
-       SUM(  NVL(l.vlrtotalnf, 0)                              -- valor da NF      >>> VALIDAR
-           + NVL(l.vlripi, 0)                                  -- IPI
-           + NVL(l.vlricmsst, 0)                               -- ICMS ST
-           + NVL(l.vlrdespnf, 0)                               -- despesas na NF
-           + NVL(l.vlriss, 0)                                  -- ISS
-           + NVL(l.vlrdespforanf, 0)                           -- despesas fora da NF
-           - NVL(l.vlrdescforanf, 0)                           -- descontos fora da NF
+       SUM(NVL(l.qtdlancto, 0))           AS qtd_lancada,
+       SUM(  NVL(l.valorvlrnf, 0)                              -- valor da NF
+           + NVL(l.valoripi, 0)                                -- IPI
+           + NVL(l.valoricmsst, 0)                             -- ICMS ST
+           + NVL(l.valordespnf, 0)                             -- despesas na NF
+           + NVL(l.valoriss, 0)                                -- ISS (coluna aceita nulo)
+           + NVL(l.valordespforanf, 0)                         -- despesas fora da NF
+           - NVL(l.valordctoforanf, 0)                         -- descontos fora da NF
           )                               AS vlr_movimentacao
   FROM mrl_lanctoestoque l
   JOIN max_codgeraloper g ON g.codgeraloper = l.codgeraloper
   JOIN mrl_local lo       ON lo.nroempresa  = l.nroempresa
-                         AND lo.seqlocal    = l.local          -- >>> VALIDAR coluna do local
+                         AND lo.seqlocal    = l.local          -- confirmado: LOCAL (NUMBER) = SEQLOCAL
   JOIN max_empresa e      ON e.nroempresa   = l.nroempresa
   JOIN map_produto p      ON p.seqproduto   = l.seqproduto
   JOIN map_famdivcateg fc ON fc.seqfamilia  = p.seqfamilia
@@ -53,7 +55,7 @@ SELECT l.nroempresa                       AS nro_empresa,
  WHERE l.dtaentradasaida >= :dt_ini
    AND l.dtaentradasaida <  :dt_fim
    AND l.codgeraloper IN (:cgos)
-   AND g.indabcmovto = 'S'                                     -- >>> VALIDAR flag ABC movimentação
+   AND g.indfixoabcmovimentacao = 'S'                          -- >>> VALIDAR valor da flag (09_descoberta_parte2.sql)
    AND (   (l.codgeraloper = 403 AND lo.tiplocal = 'T')
         OR (l.codgeraloper = 552 AND lo.tiplocal = 'L')
         OR  l.codgeraloper NOT IN (403, 552))
