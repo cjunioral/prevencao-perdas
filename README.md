@@ -257,7 +257,7 @@ DAX completo e rápido). Medidas, relacionamentos e páginas em
 | 6 | Linhas ocultas na planilha | Lidas | Dado oculto continua sendo dado; ocultar é formatação |
 | 7 | Venda sem produto | Fato de venda no grão loja x categoria x dia | É o grão do ABC Sintético e o do índice |
 | 8 | Índice agregado | Razão das somas, nunca média de índices | Pondera pela venda |
-| 9 | Nome do arquivo ("2025" com dados de 2026) | Irrelevante: vale o conteúdo (hash) e o padrão `*.xls[xm]` | O nome muda; o processo não pode depender dele |
+| 9 | Nome do arquivo: o enunciado cita "…Rotativo 2025.xlsm", o recebido é "…Rotativo Setembro.xlsm" e o título interno diz "2025" com dados de 2026 | Irrelevante: vale o conteúdo (hash) e o padrão `*.xls[xm]` | O nome muda a cada versão; o processo não pode depender dele |
 | 10 | O que é "CÓDIGO PLU" | É o **SEQPRODUTO** da Consinco; "CÓDIGO BARRAS" é segunda opção | Na aba `ARQUIVO` (extração da Consinco dentro da planilha), ~87% dos PLU existem como SEQPRODUTO com a mesma descrição |
 | 11 | Aba `ARQUIVO` (cadastro dentro da planilha) | Não é usada como cadastro | Está desatualizada (faltam os produtos mais novos); a fonte da verdade é a Consinco |
 | 12 | Nova versão da planilha sem algum mês antigo | Substitui só os **meses presentes** no arquivo novo; mês ausente é mantido e avisado no log | A planilha pede "não delete, apenas atualize"; uma versão só com outubro não pode apagar setembro |

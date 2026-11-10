@@ -179,9 +179,12 @@ def gerar_planilha(rnd: random.Random, ate_outubro: bool, so_outubro: bool = Fal
             ws.append(["LOJA 08 - AEROPORTO — Inventário rotativo 31/10/2026"]); r += 1
             for i in range(3):
                 ws.append([None, None, "ROTATIVO", 2000 + i, FLV[i], 5, 4, -1, -15.3 * (i + 1)]); r += 1
-    destino = RAIZ / "entrada" / "Inventário Geral e Rotativo 2025.xlsm"
-    for antigo in (RAIZ / "entrada").glob("*.xls*"):
+    # Pasta PRÓPRIA dos testes: nunca toca em entrada/, onde fica a planilha real.
+    pasta = PASTA / "entrada"
+    pasta.mkdir(parents=True, exist_ok=True)
+    for antigo in pasta.glob("*.xls*"):
         antigo.unlink()
+    destino = pasta / "Inventario_FICTICIO_teste.xlsm"
     wb.save(destino)
     return destino
 

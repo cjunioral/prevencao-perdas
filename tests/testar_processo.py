@@ -3,6 +3,8 @@
     python tests/testar_processo.py
 
 ATENÇÃO: recria o banco configurado no .env. Use um banco de teste.
+A planilha fictícia fica em tests/dados_ficticios/entrada/ — a pasta entrada/ (planilha real)
+não é lida nem alterada pelos testes.
 
 Cenários:
   1. carga inicial
@@ -33,6 +35,7 @@ assert cfg.consinco_modo == "mock", "Rode com CONSINCO_MODO=mock no .env"
 assert set(cfg.categorias) == {110, 120}, (
     f"Para os dados fictícios use CATEGORIAS_ESCOPO=AÇOUGUE:110,HORTIFRUTI:120 no .env (hoje: {cfg.categorias})")
 DATA_REF = "2026-11-10"
+PASTA_TESTE = RAIZ / "tests" / "dados_ficticios" / "entrada"
 TOTAIS = """SELECT (SELECT COUNT(*) FROM analitico.fato_avaria), (SELECT SUM(vlr_avaria) FROM analitico.fato_avaria),
                    (SELECT COUNT(*) FROM analitico.fato_venda), (SELECT SUM(vlr_venda_liquida) FROM analitico.fato_venda),
                    (SELECT COUNT(*) FROM analitico.fato_perda_inventario), (SELECT SUM(vlr_falta) FROM analitico.fato_perda_inventario)"""
@@ -40,7 +43,9 @@ TOTAIS = """SELECT (SELECT COUNT(*) FROM analitico.fato_avaria), (SELECT SUM(vlr
 
 def rodar(*args: str, env: dict | None = None) -> int:
     cmd = [sys.executable, str(RAIZ / "etl.py"), "--data-referencia", DATA_REF, "--ignorar-horario", *args]
-    return subprocess.run(cmd, cwd=RAIZ, env={**os.environ, **(env or {})},
+    # PASTA_ENTRADA aponta para a pasta dos testes: a planilha real em entrada/ nunca é usada nem apagada
+    env = {**os.environ, "PASTA_ENTRADA": str(PASTA_TESTE), **(env or {})}
+    return subprocess.run(cmd, cwd=RAIZ, env=env,
                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
 
 
