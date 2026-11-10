@@ -1,0 +1,24 @@
+# Credenciais
+.env
+
+# Dados: planilha e extrações da Consinco NÃO vão para o repositório
+entrada/*
+!entrada/.gitkeep
+*.xlsm
+*.xlsx
+*.csv
+# dados fictícios são recriados por tests/gerar_dados_ficticios.py
+tests/dados_ficticios/
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Power BI: o .pbix é entregue por e-mail; descomente se decidir versioná-lo
+# powerbi/*.pbix

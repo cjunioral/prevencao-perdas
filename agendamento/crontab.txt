@@ -1,0 +1,5 @@
+# Instalar com:  crontab -e   (e colar as linhas abaixo, ajustando o caminho)
+# Fuso explícito: o servidor pode estar em UTC; a carga deve rodar às 06h00 de Brasília.
+CRON_TZ=America/Sao_Paulo
+# min hora dia mês dia-semana  comando
+0 6 * * * /opt/prevencao-perdas/agendamento/executar_etl.sh
