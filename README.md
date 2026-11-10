@@ -130,7 +130,7 @@ compartilhadas (loja, categoria, data), o Power BI combina os três pelo filtro 
 * **blocos de 7 dias** por consulta e **bind variables**; `call_timeout` de 10 min;
 * sessão identificada (`module = ETL_PREVENCAO_PERDAS`) para o DBA enxergar no `V$SESSION`;
 * cadastros filtrados pelas categorias do escopo (não lê a tabela de produtos inteira);
-* **horário comercial (07h30–21h00):** a carga diária reduz a janela a 3 dias e a carga completa é recusada; a janela cheia roda às 06h00;
+* **horário comercial (06h30–22h30):** as lojas abrem das 07h às 22h, e a folga de 30 min cobre a abertura (sincronização do PDV, recebimento) e o fechamento (caixas e integração da venda). Nessa faixa a carga diária reduz a janela a 3 dias e a carga completa é recusada; a janela cheia roda às 06h00. A faixa é configurável no `.env`;
 * `NVL` em cada parcela do valor: no Oracle `número + NULL = NULL`, e um imposto nulo zeraria a avaria inteira.
 
 ### Conferência com o ABC de Venda Sintético
@@ -149,10 +149,17 @@ período, loja e categoria: a tela, o Oracle (`sql/extracao/06_conferencia_abc.s
 
 **2. Por categoria (valida o vínculo com Açougue e Hortifruti)**: loja 10, 08/11/2026:
 
-| Categoria | Tela ABC (R$) | Oracle `05_vendas.sql` (R$) | Diferença |
-|---|---:|---:|---:|
-| Açougue (11) | ⚠️ PREENCHER | 71.636,60 | |
-| Hortifruti (24) | ⚠️ PREENCHER | 29.197,70 | |
+| Categoria | Tela ABC (R$) | Oracle `05_vendas.sql` (R$) | PostgreSQL após a carga (R$) | Diferença |
+|---|---:|---:|---:|---:|
+| Açougue (11) | 71.636,60 | 71.636,60 | 71.636,60 | **0,00** |
+| Hortifruti (24) | 29.197,70 | 29.197,70 | 29.197,70 | **0,00** |
+
+A soma das 11 categorias da tela (Detalhe 1 = Categoria) é o mesmo total da loja, R$ 352.775,08:
+o vínculo família → categoria da árvore Mix não perde nem duplica venda.
+
+**Atenção aos nomes:** na tela, "Valor Total" é a venda **antes do desconto** (Açougue R$ 71.715,31,
+com desconto de R$ 78,71). No modelo, `vlr_venda_bruta` é a venda **antes da devolução**
+(`VLRITEM`). O índice usa só a venda líquida, que é o "Valor Total Liq" da tela.
 
 **3. Mês fechado (valida a carga até o banco)**: duas lojas x duas categorias x dois meses:
 
@@ -167,7 +174,7 @@ período, loja e categoria: a tela, o Oracle (`sql/extracao/06_conferencia_abc.s
 | | Açougue | out/2026 | | | | |
 | | Hortifruti | out/2026 | | | | |
 
-Prints da tela em `docs/conferencia/`. As consultas de mês fechado rodam fora do horário
+Os prints e exportações da tela ficam em `docs/conferencia/`, fora do Git (são dados reais de venda); o README guarda só os totais. As consultas de mês fechado rodam fora do horário
 comercial.
 
 **Como a lógica foi encontrada:** pelo SQL Monitor, a tela só grava parâmetros e lê o resultado de
@@ -197,7 +204,7 @@ Gerada com `python relatorio_qualidade.py` (os números saem do banco).
 | 8 | **Código de barras** misturando número e texto, e células com espaço `" "` | 554 / 2.716 texto | Normalizado para dígitos; espaço = vazio. Usado só como segunda chave (a 1ª é o PLU) |
 | 9 | **Estoque do sistema negativo** (QTDE. CONGELADA < 0) | 168 / 1.264 | Carregado e sinalizado. Não gera falta (só sobra), então não infla a perda — mas indica erro de entrada/cadastro |
 | 10 | Grafias diferentes: DIVISÃO "AÇOUGUE"/"ACOUGUE"; CICLO "2° CICLO"/"2º CICLO"/"2°CICLO"; nome da loja 17 "CATOL" (Aç.) x "CATOLE" (Ht.) | 474 / 1.703 | Não usados como chave: loja pelo **número**, categoria pela **Consinco** |
-| 11 | Produtos de **Mercearia** na aba de Hortifrute (granel "Verdão": linhaça, amendoim, xylitol...) | 317 linhas, R$ 11,4 mil de faltas | Rejeitados `PRODUTO_FORA_ESCOPO`: a venda deles está em Mercearia; somá-los ao Hortifruti distorceria o índice |
+| 11 | Itens de granel **"Verdão"** na aba de Hortifrute (amendoim, castanha, damasco, temperos), que pela descrição parecem Mercearia | 317 linhas | **Mantidos.** Na Consinco estão em Hortifruti (categoria 24, árvore Mix), e a venda deles também cai em Hortifruti. A categoria vem sempre do cadastro, não da descrição: assim numerador e denominador do índice usam a mesma classificação |
 | 12 | Sobras e divergência zero | 437+28 / 2.333+607 | Carregadas com `vlr_falta = 0` (regra: só faltas) |
 
 **Conferências que passaram em 100% das linhas** (dão confiança no arquivo):
@@ -205,8 +212,20 @@ VALOR DIVERGENTE = VALOR CONTADO − VALOR CONGELADO; QTDE. DIVERG. = contagem �
 STATUS coerente com o sinal; nenhuma duplicidade loja + PLU + data; nenhuma sobreposição entre as abas;
 o número da loja sempre bate com o prefixo do nome ("005-HQ PATOS" = 5).
 
-**Cruzamento com a Consinco:** ⚠️ PREENCHER com a saída de `relatorio_qualidade.py`
-(`PRODUTO_NAO_ENCONTRADO`, `PRODUTO_FORA_ESCOPO`, `LOJA_NAO_ENCONTRADA`).
+**Cruzamento com a Consinco** (carga de 10/11/2026, planilha até setembro):
+
+| Verificação | Açougue | Hortifruti |
+|---|---:|---:|
+| Linhas lidas | 1.335 | 6.404 |
+| Carregadas | 1.301 | 6.332 |
+| `LINHA_SEM_DADOS` (observações soltas) | 34 | 71 |
+| `PRODUTO_FORA_ESCOPO` (existe na Consinco, mas em outra categoria) | 0 | 1 |
+| `PRODUTO_NAO_ENCONTRADO` / `LOJA_NAO_ENCONTRADA` | 0 | 0 |
+| Aba x categoria da Consinco | 100% coerente | 100% coerente |
+| Faltas (R$) | 565.845,27 | 576.625,74 |
+
+Todo PLU da planilha foi encontrado na Consinco, e nenhum produto de uma aba pertence à
+categoria da outra.
 
 **Princípios adotados:**
 * **Nada some sem registro:** toda linha lida termina carregada ou em

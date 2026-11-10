@@ -22,3 +22,6 @@ venv/
 
 # Power BI: o .pbix tem dados reais e é entregue à parte (não vai para o Git)
 powerbi/*.pbix
+
+# Evidências da conferência com a Consinco (dados reais de venda): ficam só na máquina
+docs/conferencia/

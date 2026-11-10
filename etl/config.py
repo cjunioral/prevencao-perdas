@@ -70,7 +70,7 @@ class Config:
     # Carga incremental
     janela_dias: int = field(default_factory=lambda: int(_env("JANELA_RETROATIVA_DIAS", "40")))
     bloco_dias: int = field(default_factory=lambda: int(_env("BLOCO_EXTRACAO_DIAS", "7")))
-    horario_comercial: tuple[time, time] = field(default_factory=lambda: _horario(_env("HORARIO_COMERCIAL", "07:30-21:00")))
+    horario_comercial: tuple[time, time] = field(default_factory=lambda: _horario(_env("HORARIO_COMERCIAL", "06:30-22:30")))
     limite_dias_horario_comercial: int = field(default_factory=lambda: int(_env("LIMITE_DIAS_HORARIO_COMERCIAL", "3")))
 
     # Planilha
