@@ -20,5 +20,5 @@ __pycache__/
 .venv/
 venv/
 
-# Power BI:
+# Power BI: o .pbix tem dados reais e é entregue à parte (não vai para o Git)
 powerbi/*.pbix

@@ -111,10 +111,19 @@ compartilhadas (loja, categoria, data), o Power BI combina os três pelo filtro 
 
 | Consulta | Regras aplicadas |
 |---|---|
-| `01_lojas.sql` | Lojas e regional (`⚠️ PREENCHER: tabela/coluna onde a regional foi encontrada`) |
+| `01_lojas.sql` | Lojas e regional. **Provisório:** regional = UF da loja, porque nenhum cadastro de regional está preenchido na Consinco (investigação em `docs/descoberta_consinco.md`). Trocar a regional muda só esta consulta |
 | `02_produtos.sql`, `03_produto_codigo.sql` | Só produtos de Açougue/Hortifruti; categoria pela família, **ligação ativa**, no nível configurado; EANs para o cruzamento |
 | `04_avarias.sql` | CGOs de avaria marcados no ABC de movimentação; 403 só em local tipo T; 552 só em local tipo L; valor = NF + IPI + ICMS ST + despesas na NF + ISS + despesas fora − descontos fora; grão loja x produto x data x CGO |
-| `05_vendas.sql` | Venda líquida por loja x categoria x dia, lógica do ABC de Venda Sintético |
+| `05_vendas.sql` | Venda líquida por loja x categoria x dia com a lógica **do próprio relatório** ABC de Venda Sintético: base `MADMV_ABCDISTRIBPROD`, só operações que acumulam venda (`ACMCOMPRAVENDA IN ('S','I')`), venda líquida = `VLRITEM − VLRDEVOLITEM` |
+
+**Escopo confirmado na Consinco (10/11/2026):**
+* Categorias: `ACOUGUE = 11` e `HORTIFRUTI = 24`, nível 1, divisão 1 (VAREJO), árvore **Mix**
+  (`TIPCATEGORIA = 'M'`). A família tem ligação ativa em três árvores (M, C e L); sem esse filtro a
+  mesma venda seria contada até três vezes.
+* CGOs de avaria (`INDFIXOABCMOVIMENTACAO = 'S'` e tipo `AS`): **549, 552, 562 e 563**, mais o **403**
+  exigido pelo enunciado. O 563 (rendimento de produção) é exibido separado no painel, para a área
+  decidir se entra na perda.
+* Tipos de local: `T` = troca, `L` = loja. Daí a regra 403 só em `T` e 552 só em `L`.
 
 **Cuidado com a produção:**
 * filtro de data em **intervalo semiaberto sem função na coluna** (`col >= :ini AND col < :fim`): usa o índice e não perde o último dia quando a coluna tem hora;
@@ -126,30 +135,49 @@ compartilhadas (loja, categoria, data), o Power BI combina os três pelo filtro 
 
 ### Conferência com o ABC de Venda Sintético
 
-Mesmo período, loja e categoria na tela, no Oracle (`sql/extracao/06_conferencia_abc.sql`)
-e no banco (`sql/analises/00_conferencia_venda.sql`):
+A venda líquida tem que bater com a tela. A conferência é feita em três pontos, para o mesmo
+período, loja e categoria: a tela, o Oracle (`sql/extracao/06_conferencia_abc.sql`) e o banco
+(`sql/analises/00_conferencia_venda.sql`).
+
+**1. Total da loja (valida a fórmula)**: loja 10, 08/11/2026, todas as categorias:
+
+| Medida | Tela ABC | Oracle (lógica do ETL) | Diferença |
+|---|---:|---:|---:|
+| Produtos | 4.725 | 4.725 | 0 |
+| Quantidade | 52.392,436 | 52.392,436 | 0,000 |
+| Valor Total Liq (R$) | 352.775,08 | 352.775,08 | **0,00** |
+
+**2. Por categoria (valida o vínculo com Açougue e Hortifruti)**: loja 10, 08/11/2026:
+
+| Categoria | Tela ABC (R$) | Oracle `05_vendas.sql` (R$) | Diferença |
+|---|---:|---:|---:|
+| Açougue (11) | ⚠️ PREENCHER | 71.636,60 | |
+| Hortifruti (24) | ⚠️ PREENCHER | 29.197,70 | |
+
+**3. Mês fechado (valida a carga até o banco)**: duas lojas x duas categorias x dois meses:
 
 | Loja | Categoria | Mês | Tela ABC (R$) | Oracle (R$) | PostgreSQL (R$) | Diferença |
 |---|---|---|---:|---:|---:|---:|
-| ⚠️ PREENCHER | Açougue | set/2026 | | | | 0,00 |
-| | Hortifruti | set/2026 | | | | 0,00 |
-| | Açougue | out/2026 | | | | 0,00 |
-| | Hortifruti | out/2026 | | | | 0,00 |
+| 10 | Açougue | set/2026 | | | | |
+| 10 | Hortifruti | set/2026 | | | | |
+| 10 | Açougue | out/2026 | | | | |
+| 10 | Hortifruti | out/2026 | | | | |
+| ⚠️ 2ª loja | Açougue | set/2026 | | | | |
+| | Hortifruti | set/2026 | | | | |
+| | Açougue | out/2026 | | | | |
+| | Hortifruti | out/2026 | | | | |
 
-**Como a lógica do relatório foi descoberta:** o SQL Monitor da Consinco mostrou que a tela
-(`frmAnlABCDistribSint`) só grava parâmetros (`MBIX_TABCATRIBCONSULTA`) e lê o resultado
-(`MBIX_TABCSINTETICA`); o cálculo roda numa procedure no servidor. A procedure foi localizada pelo
-dicionário de dados (`sql/extracao/08_rastrear_abc_venda.sql`) — ⚠️ PREENCHER: nome da procedure e
-origem da fórmula de `VLRVENDALIQ`.
+Prints da tela em `docs/conferencia/`. As consultas de mês fechado rodam fora do horário
+comercial.
 
-Parâmetros da tela (capturados no rastro): divisão 1; todos os segmentos (1 a 13); categoria
-mercadológica; **não** subtrai ICMS ST; **não** subtrai verba de acordo do PDV; desconsidera
-transferências = S; baixa proporcional de produto composto = S.
+**Como a lógica foi encontrada:** pelo SQL Monitor, a tela só grava parâmetros e lê o resultado de
+uma tabela temporária de sessão (`MBIX_TABCSINTETICA`, GTT). O cálculo fica numa procedure no
+servidor, e o usuário de leitura não enxerga o código dela (`ALL_SOURCE` vazio). Por isso a fórmula
+não foi deduzida por tentativa: foi copiada do SQL que o próprio relatório mostra no botão **SQL**
+(consulta 744454). O caminho completo está em `docs/descoberta_consinco.md`.
 
-**Conferência por SQL:** o resultado da tela fica gravado em `MBIX_TABCSINTETICA` pelo número da
-consulta, então a coluna "Tela" acima sai de uma consulta (passo 6 do `08_rastrear_abc_venda.sql`), não
-de digitação. Consultas usadas: ⚠️ PREENCHER (SEQCONSULTA de cada mês/loja).
-Print em `docs/conferencia_abc.png`.
+Parâmetros da tela: divisão 1; todos os segmentos (1 a 13); categoria mercadológica; **não**
+subtrai ICMS ST; **não** subtrai verba de acordo do PDV.
 
 ## 5. Qualidade dos dados
 

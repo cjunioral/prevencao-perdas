@@ -24,7 +24,10 @@
 -- Colunas confirmadas no dicionário (ALL_TAB_COLUMNS) em 10/11/2026:
 --   data DTAENTRADASAIDA; local LOCAL -> MRL_LOCAL.SEQLOCAL; valores VALORVLRNF,
 --   VALORIPI, VALORICMSST, VALORDESPNF, VALORISS, VALORDESPFORANF, VALORDCTOFORANF.
--- >>> VALIDAR: flag de ABC de movimentação (INDFIXOABCMOVIMENTACAO?) e lista de CGOs.
+-- Flag do ABC de movimentação: MAX_CODGERALOPER.INDFIXOABCMOVIMENTACAO = 'S'.
+-- CGOs de avaria (CGOS_AVARIA no .env): classificados como avaria no ABC de
+-- movimentação (INDTIPOCGOMOVTO = 'AS': 549, 552, 562, 563) + 403 (citado no
+-- enunciado; transferência para o local de TROCA). Ver README, decisões.
 -- =============================================================================
 SELECT l.nroempresa                       AS nro_empresa,
        l.seqproduto                       AS seq_produto,
@@ -52,10 +55,11 @@ SELECT l.nroempresa                       AS nro_empresa,
   JOIN map_categoria c    ON c.seqcategoria = fc.seqcategoria
                          AND c.nrodivisao   = fc.nrodivisao
                          AND c.nivelhierarquia = :nivel_categoria
+                         AND c.tipcategoria = 'M'                  -- árvore mercadológica (há 3 árvores)
  WHERE l.dtaentradasaida >= :dt_ini
    AND l.dtaentradasaida <  :dt_fim
    AND l.codgeraloper IN (:cgos)
-   AND g.indfixoabcmovimentacao = 'S'                          -- >>> VALIDAR valor da flag (09_descoberta_parte2.sql)
+   AND g.indfixoabcmovimentacao = 'S'                          -- marcado no ABC de movimentação
    AND (   (l.codgeraloper = 403 AND lo.tiplocal = 'T')
         OR (l.codgeraloper = 552 AND lo.tiplocal = 'L')
         OR  l.codgeraloper NOT IN (403, 552))

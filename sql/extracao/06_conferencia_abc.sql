@@ -1,30 +1,41 @@
 -- =============================================================================
--- 06_conferencia_abc.sql — conferência da venda líquida com a tela
--- Rode no Oracle (SQL Developer) com o mesmo período/loja/categoria que você
--- usar no relatório "ABC de Venda Sintético". Compare linha a linha e cole o
--- resultado no README. Faça para pelo menos 2 lojas x 2 categorias x 2 meses.
+-- 06_conferencia_abc.sql — conferência da venda líquida com a tela do ABC
+-- Mesma lógica de 05_vendas.sql, com loja e período fixos. Compare com a coluna
+-- "Valor Total Liq" da tela "Análise ABC Venda Distribuição Sintética"
+-- (mesmo período, mesma loja, Detalhe 1 = Categoria para ver por categoria).
 --
--- O lado do banco analítico está em sql/analises/00_conferencia_venda.sql
--- (os três números — tela, Oracle e PostgreSQL — devem ser iguais).
+-- A) TOTAL da loja (todas as categorias) -> compara com a linha TOTAL da tela
+-- B) por categoria (Açougue e Hortifruti) -> compara com Detalhe 1 = Categoria
 -- =============================================================================
-SELECT nro_empresa, seq_categoria, TO_CHAR(dta_venda, 'YYYY-MM') AS mes,
-       SUM(vlr_venda_bruta)   AS venda_bruta,
-       SUM(vlr_devolucao)     AS devolucao,
-       SUM(vlr_venda_liquida) AS venda_liquida
-  FROM ( /* cole aqui o SELECT de 05_vendas.sql */
-         SELECT v.nroempresa AS nro_empresa, c.seqcategoria AS seq_categoria,
-                TRUNC(v.dtavda) AS dta_venda,
-                SUM(NVL(v.vlritem, 0)) AS vlr_venda_bruta,
-                SUM(NVL(v.vlrdevolitem, 0)) AS vlr_devolucao,
-                SUM(NVL(v.vlritem, 0)) - SUM(NVL(v.vlrdevolitem, 0)) AS vlr_venda_liquida
-           FROM maxv_abcdistribbase v
-           JOIN max_empresa e      ON e.nroempresa = v.nroempresa
-           JOIN map_produto p      ON p.seqproduto = v.seqproduto
-           JOIN map_famdivcateg fc ON fc.seqfamilia = p.seqfamilia AND fc.nrodivisao = e.nrodivisao AND fc.status = 'A'
-           JOIN map_categoria c    ON c.seqcategoria = fc.seqcategoria AND c.nrodivisao = fc.nrodivisao AND c.nivelhierarquia = :nivel_categoria
-          WHERE v.dtavda >= DATE '2026-09-01' AND v.dtavda < DATE '2026-11-01'
-            AND v.nroempresa IN (:loja1, :loja2)
-            AND c.seqcategoria IN (:cat_acougue, :cat_hortifruti)
-          GROUP BY v.nroempresa, c.seqcategoria, TRUNC(v.dtavda) )
- GROUP BY nro_empresa, seq_categoria, TO_CHAR(dta_venda, 'YYYY-MM')
- ORDER BY 1, 2, 3;
+
+-- A) total da loja, sem filtro de categoria
+SELECT a3.nroempresa,
+       COUNT(DISTINCT a3.seqproduto)                         AS produtos,
+       ROUND(SUM(a3.qtditem - a3.qtddevolitem), 3)           AS quantidade,
+       ROUND(SUM(NVL(a3.vlritem, 0) - NVL(a3.vlrdevolitem, 0)), 2) AS venda_liquida
+  FROM madmv_abcdistribprod a3
+  JOIN map_produto a      ON a.seqproduto   = a3.seqproduto
+  JOIN map_famembalagem k ON k.seqfamilia   = a.seqfamilia AND k.qtdembalagem = 1
+ WHERE a3.nroempresa = :loja
+   AND a3.dtaentradasaida >= :dt_ini
+   AND a3.dtaentradasaida <  :dt_fim
+   AND DECODE(a3.tiptabela, 'S', a3.cgoacmcompravenda, a3.acmcompravenda) IN ('S', 'I')
+ GROUP BY a3.nroempresa;
+
+-- B) por categoria
+SELECT a3.nroempresa, c.seqcategoria, c.categoria,
+       ROUND(SUM(NVL(a3.vlritem, 0) - NVL(a3.vlrdevolitem, 0)), 2) AS venda_liquida
+  FROM madmv_abcdistribprod a3
+  JOIN map_produto a      ON a.seqproduto   = a3.seqproduto
+  JOIN map_famembalagem k ON k.seqfamilia   = a.seqfamilia AND k.qtdembalagem = 1
+  JOIN map_famdivcateg fc ON fc.seqfamilia  = a.seqfamilia AND fc.nrodivisao = a3.nrodivisao
+                         AND fc.status = 'A'
+  JOIN map_categoria c    ON c.seqcategoria = fc.seqcategoria AND c.nrodivisao = fc.nrodivisao
+                         AND c.nivelhierarquia = 1 AND c.tipcategoria = 'M'
+ WHERE a3.nroempresa = :loja
+   AND a3.dtaentradasaida >= :dt_ini
+   AND a3.dtaentradasaida <  :dt_fim
+   AND DECODE(a3.tiptabela, 'S', a3.cgoacmcompravenda, a3.acmcompravenda) IN ('S', 'I')
+   AND c.seqcategoria IN (11, 24)
+ GROUP BY a3.nroempresa, c.seqcategoria, c.categoria
+ ORDER BY 2;

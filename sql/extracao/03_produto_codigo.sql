@@ -14,4 +14,5 @@ SELECT DISTINCT
   JOIN map_categoria c    ON c.seqcategoria = fc.seqcategoria
                          AND c.nrodivisao   = fc.nrodivisao
                          AND c.nivelhierarquia = :nivel_categoria
+                         AND c.tipcategoria = 'M'                  -- árvore mercadológica (há 3 árvores)
  WHERE c.seqcategoria IN (:categorias)
