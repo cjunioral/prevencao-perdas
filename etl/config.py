@@ -55,6 +55,7 @@ class Config:
     oracle_user: str = field(default_factory=lambda: _env("ORACLE_USER"))
     oracle_password: str = field(default_factory=lambda: _env("ORACLE_PASSWORD"))
     oracle_dsn: str = field(default_factory=lambda: _env("ORACLE_DSN"))
+    oracle_schema: str = field(default_factory=lambda: _env("ORACLE_SCHEMA", "").strip())
     oracle_timeout_ms: int = field(default_factory=lambda: int(_env("ORACLE_TIMEOUT_MS", "600000")))
     mock_dir: Path = field(default_factory=lambda: RAIZ / _env("MOCK_DIR", "tests/dados_ficticios"))
 

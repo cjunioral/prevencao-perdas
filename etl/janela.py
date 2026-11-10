@@ -15,6 +15,8 @@ Proteções adicionais:
   * primeira execução (nunca houve sucesso): carrega desde PERIODO_INICIO;
   * buraco (a máquina ficou desligada mais que a janela): a janela começa no
     dia seguinte ao último período carregado com sucesso;
+  * período explícito (--inicio/--fim): carrega exatamente esse intervalo, em
+    qualquer modo, sujeito ao mesmo limite de dias do horário comercial;
   * horário comercial: a janela é reduzida aos últimos
     LIMITE_DIAS_HORARIO_COMERCIAL dias; a janela completa fica para a execução
     das 06h00. Carga completa em horário comercial é recusada.
@@ -52,11 +54,13 @@ def calcular(cfg: Config, modo: str, data_ref: date, ultimo_fim_ok: date | None,
     teto = min(ontem, cfg.periodo_fim) if cfg.periodo_fim else ontem
     obs = []
 
-    if modo == "completo":
-        j = Janela(inicio or cfg.periodo_inicio, fim or teto, "carga completa solicitada")
+    if modo == "completo" or inicio or fim:
+        # período explícito (--inicio/--fim) vale em qualquer modo: é um reprocessamento manual
+        motivo = "carga completa solicitada" if modo == "completo" else "período informado manualmente"
+        j = Janela(inicio or cfg.periodo_inicio, fim or teto, motivo)
         if em_horario_comercial(cfg, agora) and not ignorar_horario and j.dias > cfg.limite_dias_horario_comercial:
             raise PermissionError(
-                f"Carga completa de {j.dias} dias recusada em horário comercial "
+                f"Carga de {j.dias} dias recusada em horário comercial "
                 f"({cfg.horario_comercial[0]}-{cfg.horario_comercial[1]}). "
                 "Agende fora do horário ou use --ignorar-horario conscientemente.")
         return j if j.inicio <= j.fim else None

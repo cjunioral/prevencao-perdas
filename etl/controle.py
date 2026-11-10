@@ -11,7 +11,7 @@ import json
 import os
 import socket
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import psycopg
@@ -98,11 +98,26 @@ class Controle:
                ORDER BY inicio DESC LIMIT 1""", (fonte, aba)).fetchone()
         return row[0] if row else None
 
-    def ultimo_fim_sucesso(self, fonte: str) -> date | None:
-        row = self.con.execute(
-            "SELECT MAX(periodo_fim) FROM controle.carga WHERE fonte = %s AND status = 'SUCESSO'",
-            (fonte,)).fetchone()
-        return row[0] if row else None
+    def ultimo_fim_sucesso(self, fonte: str, inicio_periodo: date) -> date | None:
+        """Último dia da cobertura CONTÍNUA desde inicio_periodo (None = nunca cobriu o início).
+
+        Não basta o MAX(periodo_fim): uma carga manual de um dia isolado (ex.: teste de
+        08/11) teria sucesso e esconderia setembro e outubro, que nunca foram carregados.
+        Aqui os períodos com sucesso são unidos a partir do início; o primeiro buraco encerra
+        a cobertura, e a próxima carga diária recomeça dali.
+        """
+        rows = self.con.execute(
+            """SELECT periodo_inicio, periodo_fim FROM controle.carga
+                WHERE fonte = %s AND status = 'SUCESSO' AND periodo_inicio IS NOT NULL
+                ORDER BY periodo_inicio""", (fonte,)).fetchall()
+        coberto: date | None = None
+        for ini, fim in rows:
+            limite = inicio_periodo if coberto is None else coberto + timedelta(days=1)
+            if ini > limite:
+                break
+            if coberto is None or fim > coberto:
+                coberto = fim
+        return coberto
 
 
 def gravar_rejeitados(cur: psycopg.Cursor, id_carga: int, fonte: str, rejeitados: list[Rejeitado],

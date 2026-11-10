@@ -66,7 +66,15 @@ class ConsincoOracle:
         self.con.call_timeout = cfg.oracle_timeout_ms
         self.con.module = "ETL_PREVENCAO_PERDAS"
         self.con.client_identifier = "etl_prevencao_perdas"
-        log.info("Conectado ao Oracle %s", cfg.oracle_dsn)
+        if cfg.oracle_schema:
+            # as consultas não levam o dono das tabelas (CONSINCO.MAX_EMPRESA): a sessão
+            # aponta para o schema, como o DBeaver faz ao escolher o schema padrão
+            if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_$#]{0,127}", cfg.oracle_schema):
+                raise ValueError(f"ORACLE_SCHEMA inválido: {cfg.oracle_schema!r}")
+            self.con.current_schema = cfg.oracle_schema.upper()
+        # o endereço do servidor não vai para o log: o log pode ser enviado a terceiros
+        log.info("Conectado ao Oracle %s | usuário %s | schema %s",
+                 self.con.version, cfg.oracle_user.upper(), (cfg.oracle_schema or cfg.oracle_user).upper())
 
     def consultar(self, nome, params=None, listas=None):
         sql = (PASTA_SQL / ARQUIVOS[nome]).read_text(encoding="utf-8")

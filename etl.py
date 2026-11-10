@@ -74,7 +74,7 @@ def rodar_consinco(ctx: Contexto, args: argparse.Namespace) -> list[str]:
           executar_fonte(ctx, "consinco_produtos", lambda id_c: carga_consinco.carregar_produtos(ctx, id_c))]
     for tipo, fonte in (("avaria", "consinco_avaria"), ("venda", "consinco_venda")):
         try:
-            j = janela.calcular(ctx.cfg, args.modo, ctx.data_ref, ctx.controle.ultimo_fim_sucesso(fonte),
+            j = janela.calcular(ctx.cfg, args.modo, ctx.data_ref, ctx.controle.ultimo_fim_sucesso(fonte, ctx.cfg.periodo_inicio),
                                 args.inicio, args.fim, args.ignorar_horario)
         except PermissionError as e:
             st.append(executar_fonte(ctx, fonte, lambda _id, e=e: _levantar(e)))

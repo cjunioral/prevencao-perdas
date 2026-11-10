@@ -14,6 +14,7 @@ Cenários:
   4b. versão que traz só o mês novo não apaga os meses anteriores
   5. concorrência: segunda execução é bloqueada enquanto a primeira roda
   6. falha controlada: Consinco fora do ar, planilha segue
+  7. carga manual de um dia isolado não esconde o resto do período da carga diária
 """
 from __future__ import annotations
 
@@ -137,6 +138,16 @@ def main():
     st = dict(sql("""SELECT fonte, status FROM controle.carga WHERE id_execucao =
                      (SELECT MAX(id_execucao) FROM controle.execucao)"""))
     ok(st.get("consinco_lojas") == "FALHA" and st.get("planilha_inventario") == "SUCESSO", f"status por fonte {st}")
+
+    print("7. Carga manual de um dia isolado (teste em produção) + carga diária")
+    subprocess.run([py, "criar_banco.py", "--recriar"], cwd=RAIZ, check=True, stdout=subprocess.DEVNULL)
+    ok(rodar("--fontes", "consinco", "--inicio", "2026-10-15", "--fim", "2026-10-15") == 0,
+       "carga de 1 dia com --inicio/--fim no modo diário")
+    dias = sql("SELECT MIN(data), MAX(data) FROM analitico.fato_venda")[0]
+    ok(dias[0] == dias[1] and str(dias[0]) == "2026-10-15", f"carregou só o dia pedido {dias}")
+    ok(rodar("--fontes", "consinco") == 0, "carga diária em seguida")
+    ini = sql("SELECT MIN(data) FROM analitico.fato_venda")[0][0]
+    ok(str(ini) == "2026-09-01", f"a diária recuperou desde o início do período (começa em {ini})")
     print("\nTodos os cenários passaram.")
 
 
