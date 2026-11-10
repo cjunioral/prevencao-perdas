@@ -20,5 +20,5 @@ __pycache__/
 .venv/
 venv/
 
-# Power BI: o .pbix é entregue por e-mail; descomente se decidir versioná-lo
-# powerbi/*.pbix
+# Power BI:
+powerbi/*.pbix
