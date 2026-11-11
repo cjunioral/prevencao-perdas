@@ -53,10 +53,24 @@ Nenhum cadastro de regional está preenchido:
 | `CONSINCOMONITOR.VW_REGIAO` | Vazia (é do monitor de PDV) |
 | `NROSEGMENTOPRINC` / `MAD_SEGMENTO` | É canal de venda, não regional |
 
-**Decisão provisória:** regional = UF da loja, que é um dado da própria Consinco e tem sentido
-geográfico. Quando a regional oficial for informada, muda só a `01_lojas.sql`.
+**Decisão:** a regra veio da área de negócio, em 11/11/2026: a lista de lojas por regional de
+uma aplicação interna, revisada com a operação. São três regionais: **Mossoró, Natal e Paraíba**.
+
+| Regional | Lojas |
+|---|---|
+| Mossoró | 1, 3, 6, 7, 8, 9, 10, 11, 26, 41 e 30 (Juazeiro do Norte, CE, "por enquanto") |
+| Natal | 2, 12, 13, 14, 16, 19, 20, 22, 27, 42 |
+| Paraíba | 4, 5, 15, 17, 18, 21, 23, 24, 25, 28, 40 |
+
+* A regra **não é geográfica**: 019 (Assu) e 027 (Macau) são da Regional Natal. Por isso ela é
+  aplicada por número da loja, e não por cidade ou UF.
+* A lista da aplicação estava desatualizada: faltavam a 030 (que está na planilha de inventário),
+  a 002, a 040 e a 042, incluídas na revisão.
+* As outras empresas ativas (depósitos, estoques, operações que não são supermercado) ficam como
+  `-1 SEM REGIONAL`: entram no total da rede, mas em nenhuma regional.
+* Quando a regional for cadastrada na Consinco, muda só a `01_lojas.sql`.
 
 ## 5. Pendências com a área de negócio
 
-1. Qual é o agrupamento oficial de regionais?
+1. ~~Qual é o agrupamento oficial de regionais?~~ Respondido pela operação em 11/11/2026 (acima).
 2. O CGO 563 (rendimento de produção) entra como avaria?

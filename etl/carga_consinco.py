@@ -68,6 +68,14 @@ def carregar_lojas(ctx: Contexto, id_carga: int) -> ResultadoCarga:
               RETURNING (xmax = 0) AS inserido)
             SELECT COUNT(*) FILTER (WHERE inserido), COUNT(*) FILTER (WHERE NOT inserido) FROM up""")
         r.inseridas, r.atualizadas = cur.fetchone()
+        # regional que ficou sem nenhuma loja (a regra mudou) sai da dimensão:
+        # senão aparece vazia nos filtros do painel. O membro -1 fica sempre.
+        cur.execute("""DELETE FROM analitico.dim_regional r
+                        WHERE r.nro_regional <> -1
+                          AND NOT EXISTS (SELECT 1 FROM analitico.dim_loja l
+                                           WHERE l.nro_regional = r.nro_regional)""")
+        if cur.rowcount:
+            r.avisos["regionais_sem_loja_removidas"] = cur.rowcount
     r.carregadas = len(vistos)
     return r
 

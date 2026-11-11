@@ -111,7 +111,7 @@ compartilhadas (loja, categoria, data), o Power BI combina os três pelo filtro 
 
 | Consulta | Regras aplicadas |
 |---|---|
-| `01_lojas.sql` | Lojas e regional. **Provisório:** regional = UF da loja, porque nenhum cadastro de regional está preenchido na Consinco (investigação em `docs/descoberta_consinco.md`). Trocar a regional muda só esta consulta |
+| `01_lojas.sql` | Lojas e regional. A Consinco não tem regional cadastrada; a regra (Mossoró, Natal, Paraíba) veio da área de negócio e é aplicada **por número da loja**, porque não é geográfica (ex.: 019 Assu é da Regional Natal). Empresas fora da lista ficam `-1 SEM REGIONAL`. Detalhes em `docs/descoberta_consinco.md` |
 | `02_produtos.sql`, `03_produto_codigo.sql` | Só produtos de Açougue/Hortifruti; categoria pela família, **ligação ativa**, no nível configurado; EANs para o cruzamento |
 | `04_avarias.sql` | CGOs de avaria marcados no ABC de movimentação; 403 só em local tipo T; 552 só em local tipo L; valor = NF + IPI + ICMS ST + despesas na NF + ISS + despesas fora − descontos fora; grão loja x produto x data x CGO |
 | `05_vendas.sql` | Venda líquida por loja x categoria x dia com a lógica **do próprio relatório** ABC de Venda Sintético: base `MADMV_ABCDISTRIBPROD`, só operações que acumulam venda (`ACMCOMPRAVENDA IN ('S','I')`), venda líquida = `VLRITEM − VLRDEVOLITEM` |
@@ -161,18 +161,29 @@ o vínculo família → categoria da árvore Mix não perde nem duplica venda.
 com desconto de R$ 78,71). No modelo, `vlr_venda_bruta` é a venda **antes da devolução**
 (`VLRITEM`). O índice usa só a venda líquida, que é o "Valor Total Liq" da tela.
 
-**3. Mês fechado (valida a carga até o banco)**: duas lojas x duas categorias x dois meses:
+**3. Mês fechado (valida a carga até o banco)**: duas lojas x duas categorias x dois meses,
+com a carga completa das 06h00 de 11/11/2026:
 
-| Loja | Categoria | Mês | Tela ABC (R$) | Oracle (R$) | PostgreSQL (R$) | Diferença |
-|---|---|---|---:|---:|---:|---:|
-| 10 | Açougue | set/2026 | | | | |
-| 10 | Hortifruti | set/2026 | | | | |
-| 10 | Açougue | out/2026 | | | | |
-| 10 | Hortifruti | out/2026 | | | | |
-| ⚠️ 2ª loja | Açougue | set/2026 | | | | |
-| | Hortifruti | set/2026 | | | | |
-| | Açougue | out/2026 | | | | |
-| | Hortifruti | out/2026 | | | | |
+| Loja | Categoria | Mês | Tela ABC (R$) | PostgreSQL (R$) | Diferença |
+|---|---|---|---:|---:|---:|
+| 10 | Açougue | set/2026 | 2.445.952,23 | 2.445.952,23 | **0,00** |
+| 10 | Hortifruti | set/2026 | 1.042.565,16 | 1.042.565,16 | **0,00** |
+| 10 | Açougue | out/2026 | 2.567.058,95 | 2.567.058,95 | **0,00** |
+| 10 | Hortifruti | out/2026 | 1.085.062,56 | 1.085.062,56 | **0,00** |
+| 22 | Açougue | set/2026 | 2.154.923,23 | 2.154.923,23 | **0,00** |
+| 22 | Hortifruti | set/2026 | 1.046.585,37 | 1.046.585,37 | **0,00** |
+| 22 | Açougue | out/2026 | 2.392.179,71 | 2.392.179,71 | **0,00** |
+| 22 | Hortifruti | out/2026 | 1.144.806,81 | 1.144.806,81 | **0,00** |
+
+Nos quatro relatórios, a soma das 11 categorias da tela é igual ao total da loja (ex.: loja 10,
+set/2026: R$ 13.385.344,83). A lógica bate com a tela num dia (item 1) e o número chega intacto ao
+banco depois de 11 blocos de extração, staging e upsert (item 3).
+
+**Venda líquida negativa (20 dias de loja x categoria):** não é erro, é devolução maior que a venda
+no dia. Concentrada na loja 25 (atacado, Açougue: até R$ 120 mil de devolução num dia) e na 42
+(operação com quase só devoluções). Mantida, porque é assim que o ABC calcula e a venda precisa
+bater com a tela. Leitura de negócio: no atacado, devolução alta reduz a venda líquida e eleva o
+índice; o índice da loja 25 deve ser lido junto com a devolução.
 
 Os prints e exportações da tela ficam em `docs/conferencia/`, fora do Git (são dados reais de venda); o README guarda só os totais. As consultas de mês fechado rodam fora do horário
 comercial.
@@ -274,9 +285,22 @@ some sozinha (sem arquivo `.lock` órfão). No Windows, a tarefa ainda usa
 do ar → fontes da Consinco ficam `FALHA`, a planilha é carregada com os cadastros
 da última carga, a execução termina `SUCESSO_PARCIAL` (código 1).
 
-**Onde roda:** ⚠️ PREENCHER (ex.: no meu notebook com Windows 11, Agendador de
-Tarefas, usuário local). Em produção: servidor da empresa sempre ligado, com a
-mesma tarefa. Logs em `logs/etl_AAAA-MM-DD.log` e `logs/agendado_AAAA-MM-DD.log`.
+**Onde roda:** num computador Windows 11 da empresa, com acesso de leitura à Consinco e o
+PostgreSQL 18 local, pelo Agendador de Tarefas (tarefa `PrevencaoPerdas_ETL`, diária às 06h00,
+com o usuário logado e `WakeToRun`). Em produção: servidor da empresa sempre ligado, com a mesma
+tarefa. Logs em `logs/etl_AAAA-MM-DD.log` e `logs/agendado_AAAA-MM-DD.log`.
+
+**Primeira execução real (11/11/2026, 06h00, agendada):** o banco não cobria o período desde
+01/09, então a carga diária fez a carga inicial sozinha, fora do horário comercial:
+
+| Fonte | Período | Linhas | Tempo |
+|---|---|---:|---:|
+| Avaria | 01/09 a 10/11 (11 blocos de 7 dias) | 49.640 | 11 min 12 s |
+| Venda | 01/09 a 10/11 | 3.873 | 1 min 23 s |
+| Planilha | sem alteração (mesmo hash) | — | — |
+| **Total** | | | **~13 min**, terminou às 06h12 |
+
+Os 25 lançamentos de 08/11 carregados no teste da véspera não duplicaram (+49.615 inseridos).
 
 ## 7. Power BI
 
