@@ -5,6 +5,8 @@
 --
 -- Lógica:
 --   * período inteiro (set+out), as duas categorias somadas: a pergunta é por loja;
+--   * só loja x categoria x mês com inventário: sem ele, a perda não identificada
+--     é desconhecida e o % "identificado" sairia 100% por falta de dado;
 --   * % não identificada = perda não identificada / perda total;
 --   * perda não identificada alta indica que a loja perde sem registrar
 --     (furto, erro de recebimento, quebra não lançada): é processo, não só produto;
@@ -21,6 +23,7 @@ WITH loja AS (
            SUM(venda_liquida)          AS venda_liquida
     FROM analitico.vw_indice_perda_mensal
     WHERE mes BETWEEN DATE '2026-09-01' AND DATE '2026-10-01'
+      AND com_inventario
     GROUP BY nro_empresa, nome_loja, nome_regional
 )
 SELECT nro_empresa,

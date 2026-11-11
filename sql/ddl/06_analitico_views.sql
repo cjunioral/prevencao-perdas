@@ -7,16 +7,24 @@
 -- (sem venda) ou só venda (sem perda) continua aparecendo.
 -- Agregações acima deste grão (regional, rede) devem SOMAR perdas e vendas e
 -- dividir depois (razão das somas), nunca tirar média dos índices.
-CREATE OR REPLACE VIEW analitico.vw_indice_perda_mensal AS
+--
+-- com_inventario: a loja fez inventário daquela categoria naquele mês.
+-- O índice só existe onde ele é verdadeiro. Sem inventário, a perda não
+-- identificada é desconhecida (não é zero): somar essa venda e essa avaria
+-- puxaria o índice para baixo. Ex.: em set/2026, 9 lojas venderam Açougue sem
+-- inventário; outubro inteiro fica sem índice até a planilha de outubro chegar.
+-- Agregações acima do grão filtram com_inventario antes de somar.
+DROP VIEW IF EXISTS analitico.vw_indice_perda_mensal;
+CREATE VIEW analitico.vw_indice_perda_mensal AS
 WITH base AS (
     SELECT nro_empresa, seq_categoria, date_trunc('month', data)::date AS mes,
-           vlr_venda_liquida AS venda, 0::numeric AS avaria, 0::numeric AS perda_ni
+           vlr_venda_liquida AS venda, 0::numeric AS avaria, 0::numeric AS perda_ni, 0 AS inventario
     FROM analitico.fato_venda
     UNION ALL
-    SELECT nro_empresa, seq_categoria, date_trunc('month', data)::date, 0, vlr_avaria, 0
+    SELECT nro_empresa, seq_categoria, date_trunc('month', data)::date, 0, vlr_avaria, 0, 0
     FROM analitico.fato_avaria
     UNION ALL
-    SELECT nro_empresa, seq_categoria, date_trunc('month', data)::date, 0, 0, vlr_falta
+    SELECT nro_empresa, seq_categoria, date_trunc('month', data)::date, 0, 0, vlr_falta, 1
     FROM analitico.fato_perda_inventario
 )
 SELECT b.mes,
@@ -26,11 +34,14 @@ SELECT b.mes,
        b.nro_empresa,
        l.nome_loja,
        c.categoria,
+       MAX(b.inventario) = 1                   AS com_inventario,
        SUM(b.venda)                            AS venda_liquida,
        SUM(b.avaria)                           AS avaria_identificada,
        SUM(b.perda_ni)                         AS perda_nao_identificada,
        SUM(b.avaria) + SUM(b.perda_ni)         AS perda_total,
-       (SUM(b.avaria) + SUM(b.perda_ni)) / NULLIF(SUM(b.venda), 0) AS indice_perda
+       CASE WHEN MAX(b.inventario) = 1
+            THEN (SUM(b.avaria) + SUM(b.perda_ni)) / NULLIF(SUM(b.venda), 0)
+       END                                     AS indice_perda      -- NULL = sem inventário
 FROM base b
 JOIN analitico.dim_loja      l ON l.nro_empresa   = b.nro_empresa
 JOIN analitico.dim_regional  r ON r.nro_regional  = l.nro_regional

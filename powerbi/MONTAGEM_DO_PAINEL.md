@@ -60,13 +60,38 @@ Perda Não Identificada = SUM ( fato_perda_inventario[vlr_falta] )
 
 Perda Total = [Avaria Identificada] + [Perda Não Identificada]
 
-Índice de Perda = DIVIDE ( [Perda Total], [Venda Líquida] )
+-- O índice só existe onde a loja fez inventário da categoria no mês: sem ele, a perda
+-- não identificada é DESCONHECIDA (não é zero). As duas medidas abaixo restringem o
+-- cálculo às combinações loja x categoria x mês que têm inventário.
+Venda Base do Índice =
+CALCULATE (
+    [Venda Líquida],
+    FILTER (
+        CROSSJOIN ( VALUES ( dim_loja[nro_empresa] ), VALUES ( dim_categoria[seq_categoria] ), VALUES ( dim_data[ano_mes] ) ),
+        CALCULATE ( COUNTROWS ( fato_perda_inventario ) ) > 0
+    )
+)
+
+Perda Base do Índice =
+CALCULATE (
+    [Perda Total],
+    FILTER (
+        CROSSJOIN ( VALUES ( dim_loja[nro_empresa] ), VALUES ( dim_categoria[seq_categoria] ), VALUES ( dim_data[ano_mes] ) ),
+        CALCULATE ( COUNTROWS ( fato_perda_inventario ) ) > 0
+    )
+)
+
+Índice de Perda = DIVIDE ( [Perda Base do Índice], [Venda Base do Índice] )
 -- Razão das somas: em qualquer nível (loja, regional, rede) soma perdas e vendas
 -- do contexto e divide. Nunca média de índices. DIVIDE evita erro sem venda.
+-- Em branco = não houve inventário no recorte (ex.: outubro antes da planilha).
 
-% Perda Não Identificada = DIVIDE ( [Perda Não Identificada], [Perda Total] )
+Cobertura do Inventário = DIVIDE ( [Venda Base do Índice], [Venda Líquida] )
+-- % da venda que entrou no índice. Abaixo de 100%: há lojas/meses sem inventário.
 
-% Perda Identificada = DIVIDE ( [Avaria Identificada], [Perda Total] )
+% Perda Não Identificada = DIVIDE ( [Perda Não Identificada], [Perda Base do Índice] )
+
+% Perda Identificada = IF ( NOT ISBLANK ( [Perda Base do Índice] ), 1 - [% Perda Não Identificada] )
 
 Índice Mês Anterior =
 CALCULATE ( [Índice de Perda], DATEADD ( dim_data[data], -1, MONTH ) )

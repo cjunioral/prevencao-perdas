@@ -10,8 +10,10 @@
 --   * pivotamos setembro e outubro lado a lado (FILTER) para calcular a variação;
 --   * variação em p.p. = índice_out(%) - índice_set(%). Ex.: 2,10% -> 2,85% = +0,75 p.p.
 --     (não é variação percentual: 0,75 p.p. seria +35,7% em termos relativos);
---   * índice nulo = sem venda da categoria na loja no mês (divisão por zero
---     evitada com NULLIF na view); variação nula se faltar um dos meses.
+--   * índice nulo = loja sem inventário da categoria no mês (a perda não
+--     identificada é desconhecida, não zero) ou sem venda; variação nula se faltar
+--     um dos meses. Outubro fica nulo até a planilha de outubro ser carregada;
+--   * com_inventario_set/out mostram o motivo do nulo.
 -- Ordenado pela maior piora: as primeiras linhas são onde agir.
 -- =============================================================================
 WITH m AS (
@@ -22,6 +24,8 @@ SELECT nro_empresa,
        nome_loja,
        nome_regional,
        categoria,
+       BOOL_OR(com_inventario) FILTER (WHERE mes = '2026-09-01')       AS com_inventario_set,
+       BOOL_OR(com_inventario) FILTER (WHERE mes = '2026-10-01')       AS com_inventario_out,
        SUM(venda_liquida) FILTER (WHERE mes = '2026-09-01')            AS venda_set,
        SUM(perda_total)   FILTER (WHERE mes = '2026-09-01')            AS perda_set,
        ROUND(100 * MAX(indice_perda) FILTER (WHERE mes = '2026-09-01'), 2) AS indice_set_pct,

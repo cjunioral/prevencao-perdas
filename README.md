@@ -333,7 +333,9 @@ DAX completo e rápido). Medidas, relacionamentos e páginas em
 | 11 | Aba `ARQUIVO` (cadastro dentro da planilha) | Não é usada como cadastro | Está desatualizada (faltam os produtos mais novos); a fonte da verdade é a Consinco |
 | 12 | Nova versão da planilha sem algum mês antigo | Substitui só os **meses presentes** no arquivo novo; mês ausente é mantido e avisado no log | A planilha pede "não delete, apenas atualize"; uma versão só com outubro não pode apagar setembro |
 | 13 | Faltas e sobras de produtos "similares" (coluna OBSERVAÇÕES: "similar 27544") | Não compensadas | Regra do enunciado: só faltas. Ver recomendação no resumo |
-| 14 | ⚠️ PREENCHER | | |
+| 14 | Loja x categoria x mês **sem inventário** (outubro inteiro até a planilha chegar; em set/2026, 9 lojas de Açougue com R$ 15,3 mi de venda) | **Fora do índice**: o índice só soma onde houve inventário. A venda que ficou de fora aparece como **cobertura do inventário** | Sem inventário a perda não identificada é desconhecida, não zero. Somar essa venda baixaria o índice: em set/2026, o Açougue cairia de 3,10% para 2,05% |
+| 15 | Regional | Mossoró, Natal e Paraíba, por número da loja; fora da lista = `SEM REGIONAL` | A Consinco não tem regional cadastrada; regra informada pela operação (ver `docs/descoberta_consinco.md`) |
+| 16 | Venda líquida negativa num dia | Mantida | É devolução maior que a venda no dia; é assim que o ABC calcula, e a venda precisa bater com a tela |
 
 ## 10. Resumo para a gerência de Prevenção de Perdas
 

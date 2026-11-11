@@ -8,7 +8,11 @@
 --     pesaria igual a uma loja grande. A razão das somas pondera pela venda;
 --   * GROUPING SETS calcula, numa única passada, regional x categoria x mês e
 --     rede x categoria x mês, além do período inteiro (set+out);
---   * lojas sem regional cadastrada aparecem como "SEM REGIONAL" (não somem).
+--   * lojas sem regional cadastrada aparecem como "SEM REGIONAL" (não somem);
+--   * o índice soma SÓ loja x categoria x mês com inventário (com_inventario):
+--     sem inventário a perda não identificada é desconhecida, e somar essa venda
+--     baixaria o índice. cobertura_pct = parte da venda que tem inventário; a venda
+--     fora do índice aparece à parte, para ninguém achar que ela sumiu.
 -- =============================================================================
 WITH m AS (
     SELECT * FROM analitico.vw_indice_perda_mensal
@@ -17,11 +21,15 @@ WITH m AS (
 SELECT CASE WHEN GROUPING(nome_regional) = 1 THEN 'REDE' ELSE nome_regional END   AS nivel,
        categoria,
        CASE WHEN GROUPING(ano_mes) = 1 THEN 'set+out' ELSE ano_mes END           AS periodo,
-       SUM(venda_liquida)                                                       AS venda_liquida,
-       SUM(avaria_identificada)                                                 AS avaria_identificada,
-       SUM(perda_nao_identificada)                                              AS perda_nao_identificada,
-       SUM(perda_total)                                                         AS perda_total,
-       ROUND(100 * SUM(perda_total) / NULLIF(SUM(venda_liquida), 0), 2)         AS indice_pct
+       SUM(venda_liquida) FILTER (WHERE com_inventario)                         AS venda_base_indice,
+       SUM(avaria_identificada) FILTER (WHERE com_inventario)                   AS avaria_identificada,
+       SUM(perda_nao_identificada) FILTER (WHERE com_inventario)                AS perda_nao_identificada,
+       SUM(perda_total) FILTER (WHERE com_inventario)                           AS perda_total,
+       ROUND(100 * SUM(perda_total) FILTER (WHERE com_inventario)
+                 / NULLIF(SUM(venda_liquida) FILTER (WHERE com_inventario), 0), 2) AS indice_pct,
+       SUM(venda_liquida) FILTER (WHERE NOT com_inventario)                     AS venda_sem_inventario,
+       ROUND(100 * COALESCE(SUM(venda_liquida) FILTER (WHERE com_inventario), 0)
+                 / NULLIF(SUM(venda_liquida), 0), 1)                            AS cobertura_pct
 FROM m
 GROUP BY GROUPING SETS (
     (nome_regional, categoria, ano_mes),
