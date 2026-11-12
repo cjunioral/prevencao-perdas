@@ -43,6 +43,9 @@ python etl.py --modo completo
 
 # 6. agende a carga diária (Windows, uma vez)
 powershell -ExecutionPolicy Bypass -File agendamento\registrar_tarefa_windows.ps1
+
+# 7. painel: abra powerbi\painel_prevencao_perdas.pbit no Power BI Desktop,
+#    informe pServidor = localhost e pBanco = prevencao_perdas e clique em Carregar
 ```
 
 Os parâmetros da Consinco (categorias, nível, CGOs, regional) foram descobertos com
@@ -67,7 +70,7 @@ Códigos de saída: 0 sucesso · 1 parcial · 2 falha · 3 bloqueada (outra exec
 ├── sql/analises/             01_indice_loja.sql, 02_indice_regional.sql, 03_perda_identificada_vs_nao.sql
 ├── etl/                      código: config, controle, trava, janela, qualidade, cargas, fontes
 ├── agendamento/              .bat + registro no Agendador do Windows; .sh + crontab (Linux)
-├── powerbi/                  .pbix e roteiro de montagem com as medidas DAX
+├── powerbi/                  .pbit (modelo sem dados), tema e roteiro com todas as medidas DAX
 ├── tests/                    gerador de dados fictícios e teste de ponta a ponta
 └── docs/                     diagrama do modelo, prints
 ```
@@ -304,9 +307,42 @@ Os 25 lançamentos de 08/11 carregados no teste da véspera não duplicaram (+49
 
 ## 7. Power BI
 
-Conectado direto ao PostgreSQL, modo **Import** (volume pequeno, dado muda 1x/dia,
-DAX completo e rápido). Medidas, relacionamentos e páginas em
-[powerbi/MONTAGEM_DO_PAINEL.md](powerbi/MONTAGEM_DO_PAINEL.md).
+**Conexão:** direto no PostgreSQL (`analitico` e `controle`), sem planilha ou CSV no meio,
+por dois parâmetros, `pServidor` e `pBanco`.
+
+**Import, e não DirectQuery.** O dado muda uma vez por dia (carga das 06h00), o volume cabe
+com folga em memória e o painel fica instantâneo. O DAX roda completo (`DATEADD`, `RANKX`,
+os filtros por combinação loja x categoria x mês), o que no DirectQuery tem limitações, e o
+banco local não precisa estar no ar para quem só consulta. DirectQuery só faria sentido com
+dado mudando ao longo do dia. Atualização: no Desktop, *Atualizar* depois da carga;
+publicado, atualização agendada às 06h30 pelo gateway.
+
+**Páginas** (1920 x 1080, cores da marca):
+
+| Página | Pergunta | O que mostra |
+|---|---|---|
+| Visão da rede | Quanto perdemos? | Venda e perda na base do índice, índice, % não identificada, cobertura do inventário; índice set x out por categoria; composição identificada x não identificada |
+| Regionais e lojas | Onde está a perda? | Índice por regional separado por categoria (vermelho = acima da rede), placar, matriz regional → loja, ranking das 10 lojas |
+| Qualidade e carga | Dá para confiar? | Fontes com sucesso, data da última carga, status e contagens por fonte, rejeições por motivo e a lista das linhas para a área corrigir |
+
+**Filtros:** mês, regional, loja e categoria, sincronizados entre as páginas.
+
+**Regra do índice no painel:** igual à do banco (decisão 14). Só entra loja x categoria x mês
+com inventário; o cartão **Cobertura** mostra quanto da venda ficou dentro. Antes da planilha
+de outubro, o índice de outubro aparece em branco, com um aviso no gráfico, em vez de um número
+errado.
+
+**Medidas:** venda líquida, avaria identificada, perda não identificada, perda total e índice
+de perda, mais as de comparação, ranking e qualidade, organizadas em pastas. Fórmulas e
+formatação em [powerbi/MONTAGEM_DO_PAINEL.md](powerbi/MONTAGEM_DO_PAINEL.md).
+
+**Arquivos:** o repositório guarda o **modelo `.pbit`**, sem dados; o **`.pbix`**, que contém
+dados reais da Consinco, vai à parte, por e-mail, como pede o enunciado. Abrir com o Power BI
+Desktop atualizado (versão de novembro de 2026 ou mais recente): versões anteriores não abrem o
+modelo.
+
+**Conferência:** com set/2026 e sem filtros, o painel mostra os mesmos índices que
+`sql/analises/02_indice_regional.sql` (rede 4,78%, Açougue 3,10%, Hortifruti 8,65%).
 
 ## 8. Análises em SQL
 
@@ -339,18 +375,24 @@ DAX completo e rápido). Medidas, relacionamentos e páginas em
 
 ## 10. Resumo para a gerência de Prevenção de Perdas
 
-⚠️ PREENCHER com os números reais (até meia página). Estrutura:
+**Base:** setembro de 2026, Açougue e Hortifruti, 22 lojas com inventário, R$ 40,3 milhões de
+venda. Outubro entra quando a planilha de inventário de outubro for carregada.
 
-**Período:** setembro e outubro de 2026 · Açougue e Hortifruti · N lojas.
+1. **O Hortifruti perde quase três vezes mais que o Açougue.** O índice da rede foi **4,78%**
+   (R$ 1,93 milhão): **8,65%** no Hortifruti e **3,10%** no Açougue. O pior caso é o
+   Hortifruti da **Regional Mossoró, 10,04%**.
+2. **A maior parte da perda não passa por nenhum registro.** **59%** da perda só aparece no
+   inventário, sem lançamento de avaria; no Açougue, **65%**. Na **Regional Natal**, que tem o
+   pior Açougue (**3,71%**), a parcela chega a **78%**: perfil de furto, erro de recebimento ou
+   de pesagem, não de produto estragado. A **Paraíba** é a referência: menor índice nas duas
+   categorias e a única em que, no Açougue, a perda registrada supera a não registrada.
+3. **O inventário não cobre a rede inteira.** Só **67%** da venda de setembro teve inventário:
+   **9 lojas** venderam R$ 15,3 milhões de Açougue sem contagem, e essas lojas quase não lançam
+   avaria. Em Mossoró, a cobertura fica perto de **60%**. Onde não se conta, a perda existe,
+   mas não aparece.
 
-1. **Onde está a perda.** O índice da rede foi X% em Açougue e Y% em Hortifruti; a
-   regional Z concentra W% da perda total com V% da venda.
-2. **O que piorou.** De setembro para outubro, as lojas A e B pioraram +n p.p. em
-   [categoria] — juntas respondem por R$ … de perda adicional.
-3. **O que não estamos vendo.** Em N lojas, mais de 70% da perda é não identificada
-   (aparece só no inventário). Nelas, a perda acontece sem registro de avaria.
-
-**Recomendação:** começar pelas N lojas com perda não identificada acima de 70%:
-inventário rotativo semanal dos 20 itens de maior divergência e conferência do
-lançamento de avaria (CGO correto, no dia) por 4 semanas; meta de trazer a parcela
-não identificada para abaixo de 50% e medir o efeito neste mesmo painel.
+**Recomendação:** concentrar a ação em duas frentes por 60 dias. No **Açougue de Natal**,
+auditoria de recebimento e pesagem e conferência diária do lançamento de avaria, com meta de
+trazer a parcela não identificada para abaixo de 50%. Em paralelo, **levar o inventário rotativo
+às 9 lojas sem contagem e ampliar a cobertura em Mossoró**, começando pelo Hortifruti. O
+progresso se acompanha neste mesmo painel, pela cobertura e pela % não identificada.

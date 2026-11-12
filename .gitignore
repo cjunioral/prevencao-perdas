@@ -25,3 +25,7 @@ powerbi/*.pbix
 
 # Evidências da conferência com a Consinco (dados reais de venda): ficam só na máquina
 docs/conferencia/
+
+# Power BI compactado tamb�m tem dados reais
+powerbi/*.zip
+*.pbix.zip
