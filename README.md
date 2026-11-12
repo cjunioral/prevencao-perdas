@@ -124,8 +124,11 @@ compartilhadas (loja, categoria, data), o Power BI combina os três pelo filtro 
   (`TIPCATEGORIA = 'M'`). A família tem ligação ativa em três árvores (M, C e L); sem esse filtro a
   mesma venda seria contada até três vezes.
 * CGOs de avaria (`INDFIXOABCMOVIMENTACAO = 'S'` e tipo `AS`): **549, 552, 562 e 563**, mais o **403**
-  exigido pelo enunciado. O 563 (rendimento de produção) é exibido separado no painel, para a área
-  decidir se entra na perda.
+  exigido pelo enunciado. Em set–out/2026, no escopo, a avaria vem quase toda do **552** (88% no
+  Açougue, 77% no Hortifruti) e do **403** (12% e 23%). O **563** (rendimento de produção), que
+  pelo nome poderia não ser avaria, **não teve nenhum lançamento** em Açougue e Hortifruti no
+  período: fica na lista pela regra, com impacto zero no índice. O 549 teve 2 lançamentos de
+  valor zero.
 * Tipos de local: `T` = troca, `L` = loja. Daí a regra 403 só em `T` e 552 só em `L`.
 
 **Cuidado com a produção:**

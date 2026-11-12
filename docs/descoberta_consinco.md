@@ -22,7 +22,7 @@ Sem este registro, cada regra do ETL seria uma suposição. Aqui está a evidên
 | A marcação "ABC de movimentação" é `MAX_CODGERALOPER.INDFIXOABCMOVIMENTACAO = 'S'` (69 CGOs) | Dicionário de colunas | Filtro na `04_avarias.sql` |
 | São do tipo avaria (`INDTIPOCGOMOVTO = 'AS'`): 549, 552, 562, 563 | `MAX_CODGERALOPER` | `CGOS_AVARIA=403,549,552,562,563` |
 | 403 = transferência entre locais (entrada), exigido pelo enunciado | Idem | 403 só em local `T` |
-| 563 = rendimento de produção | Idem | Incluído, mas exibido por CGO no painel. **Confirmar com a área** |
+| 563 = rendimento de produção | Idem | Incluído pela regra. Em set–out/2026 não teve lançamento no escopo: impacto zero |
 | Tipos de local: A almoxarifado, D depósito, L loja, O refeitório, T troca | `MRL_LOCAL.TIPLOCAL` | 403 só em `T`, 552 só em `L` |
 | Existe índice por data, CGO e empresa | `MRL_LANCTOESTOQIE5` | Filtro de data sem função na coluna, para usar o índice |
 
@@ -73,4 +73,4 @@ uma aplicação interna, revisada com a operação. São três regionais: **Moss
 ## 5. Pendências com a área de negócio
 
 1. ~~Qual é o agrupamento oficial de regionais?~~ Respondido pela operação em 11/11/2026 (acima).
-2. O CGO 563 (rendimento de produção) entra como avaria?
+2. ~~O CGO 563 (rendimento de produção) entra como avaria?~~ Sem lançamentos no escopo em set–out/2026 (verificado em 12/11): não muda o índice. Se passar a ter, a avaria aparece separada por CGO.
